@@ -50,8 +50,8 @@ void copia(char *temp, t_cadastro *usuario, int i, int opcao){
     comprimento = strlen(temp);
     switch(opcao){
         case 1:
-           usuario[i].nome=(char*)malloc(comprimento*sizeof(char));
-           strcpy(usuario[i].rua,temp);
+            usuario[i].nome=(char*)malloc(comprimento*sizeof(char));
+            strcpy(usuario[i].rua,temp);
             break;
         case 2:
             usuario[i].rua=(char*)malloc(comprimento*sizeof(char));
@@ -83,16 +83,16 @@ void cadastro(t_cadastro *usuario, int i){
 
     printf("Nome: ");
     fgets(temp, 50, stdin);
-    //chama funcao
     copia(temp, usuario, i, 1);
 
     printf("Numero de cadastro: %d", i+1);
-    usuario[i].num= i+1;
+    usuario[i].num= i+100000;
 
+    //verificação da senha
     while(1){
         printf("Senha numérica: ");
         fgets(temp, 10, stdin);
-        senhatmp= atoi(temp);
+        senhatmp= atoi(temp); //converte string para inteiro
         printf("Digite a senha novamente: ");
         fgets(temp, 10, stdin);
         usuario[i].senha= atoi(temp);
@@ -138,37 +138,120 @@ void salva_cadastro(t_cadastro *usuario, int i){
     if(Arq == NULL){
         printf("Erro, nao foi possivel abrir o arquivo\n");
     }else{
-        fprintf(Arq, "%s\n", usuario[i].nome);
-        fprintf(Arq, "%d\n", usuario[i].num);
-        fprintf(Arq, "%d\n", usuario[i].senha);
-        fprintf(Arq, "%d/%d/%d\n", usuario[i].data_nasc[0],usuario[i].data_nasc[1],usuario[i].data_nasc[2]);
-        fprintf(Arq, "%s\n", usuario[i].rua);
-        fprintf(Arq, "%d\n", usuario[i].num_casa);
-        fprintf(Arq, "%s\n", usuario[i].complemento);
-        fprintf(Arq, "%s\n", usuario[i].bairro);
-        fprintf(Arq, "%s\n", usuario[i].cidade);
-        fprintf(Arq, "%s\n", usuario[i].estado);
-        fprintf(Arq, "%d\n", usuario[i].qtd);
-        fprintf(Arq, "%d\n", usuario[i].data_empr);
-        fprintf(Arq, "%d\n", usuario[i].data_dev);
-        fprintf(Arq, "%s\n", usuario[i].nome_livro);
-        fprintf(Arq, "%s\n", usuario[i].nome_autor);
+        fwrite(usuario[i].nome, sizeof(usuario[i].nome), 1, Arq); //1
+        fwrite(usuario[i].num, sizeof(int), 1, Arq);
+        fwrite(usuario[i].senha, sizeof(int), 1, Arq);
+        fwrite(usuario[i].data_nasc[0], sizeof(int), 1, Arq);
+        fwrite(usuario[i].data_nasc[1], sizeof(int), 1, Arq);
+        fwrite(usuario[i].data_nasc[2], sizeof(int), 1, Arq);
+        fwrite(usuario[i].rua, sizeof(usuario[i].rua), 1, Arq);
+        fwrite(usuario[i].num_casa, sizeof(int), 1, Arq);
+        fwrite(usuario[i].complemento, sizeof(usuario[i].complemento), 1, Arq);
+        fwrite(usuario[i].bairro, sizeof(usuario[i].bairro), 1, Arq);
+        fwrite(usuario[i].cidade, sizeof(usuario[i].cidade), 1, Arq);
+        fwrite(usuario[i].estado, sizeof(usuario[i].estado), 1, Arq);
+        fwrite(usuario[i].qtd, sizeof(int), 1, Arq);
+        fwrite(usuario[i].data_empr[0],sizeof(int), 1, Arq);
+        fwrite(usuario[i].data_empr[1],sizeof(int), 1, Arq);
+        fwrite(usuario[i].data_empr[2],sizeof(int), 1, Arq);
+        fwrite(usuario[i].data_dev[0], sizeof(int), 1, Arq);
+        fwrite(usuario[i].data_dev[1], sizeof(int), 1, Arq);
+        fwrite(usuario[i].data_dev[2], sizeof(int), 1, Arq);
+        fwrite(usuario[i].nome_livro[0], sizeof(usuario[i].nome_livro[1]), 1, Arq);
+        fwrite(usuario[i].nome_livro[1], sizeof(usuario[i].nome_livro[1]), 1, Arq);
+        fwrite(usuario[i].nome_livro[2], sizeof(usuario[i].nome_livro[1]), 1, Arq);
+        fwrite(usuario[i].nome_livro[3], sizeof(usuario[i].nome_livro[1]), 1, Arq);
+        fwrite(usuario[i].nome_livro[4], sizeof(usuario[i].nome_livro[1]), 1, Arq);
+        fwrite(usuario[i].nome_livro[5], sizeof(usuario[i].nome_livro[1]), 1, Arq);
+        fwrite(usuario[i].nome_autor); //15
     }
     fclose(Arq);
 }
-void altera_cad(t_cadastro *usuario, int i){}
 
-int verifica_cad(t_cadastro *usuario, int i){}
-    //return 1 se tem cadastro
+int verifica_cad(t_cadastro *usuario, int i, char *temp){
+    Arq=fopen("Arquivo.bin", "rb");
+    char s_opcao[3];
+    int opcao, cont, qtd;
+    printf("1. Nome\n");
+    printf("2. Numero de cadastro\n");
+    printf("Digite sua opcao: ");
+    fgets(opcao, 3, stdin);
+    if((s_opcao[0]=='1')||(s_opcao[0] == '2')){
+        opcao = atoi(s_opcao);
+    }else{
+        printf("Numero inválido\n");
+        fclose(Arq);
+        return -1;
+    }
+
+    if(Arq == NULL){
+        printf("Erro, nao foi possivel abrir o arquivo\n");
+        return -1;
+    }
+
+    if(opcao == 1){
+        printf("Nome: ");
+    }else{
+        printf("Numero: ");
+    }
+    fgets(temp, 50, stdin);
+    int aux;
+    qtd = fread(aux, (sizeof(char))*(strlen(temp)), i, Arq); //2 elementos de tamanho char * strlen
+    //ver se com numero funciona, pq salvamos antes como inteiro e agora estamos procurando c uma string
+    for(cont=0; cont<qtd; cont++){ //so o necessario (2 elementos)
+        if(strcmp(aux[cont], temp) == 0){
+            fclose(Arq);
+            return 1; //tem cadastro
+        }else{
+            fclose(Arq);
+            return 0;
+        }
+    }
+
+
+}
+
+void altera_cad(t_cadastro *usuario, int i){
+
+}
 
 void emprestimo();
 
-void confirma_senha();
+void confirma_senha(char *temp){
+    int count =0;
+    char aux[50];
+    Arq = fopen("Arquivo.bin", "rb");
+    printf("Confirme sua senha: ");
+    fgets(senha1, 7, stdin);
+
+    while(!(feof(Arq))){
+        fgets(aux, 50, Arq);
+        count++;
+        if(!(strcmp(aux, temp))){ //pensar na posicao if else
+            fseek(+x bytes);
+            fgets(senha, 7, Arq);
+            if(!strcmp(senha1, senha2))
+                //
+            else
+                //senha incorreta
+                break
+
+        }
+                count++;
+                \n
+                +x
+                count %15 == 0
+                fgets da linha toda e comparar com o nome
+                rodar o count + 2
+                fgets da senha
+    }
+}
 
 
 int main(){
     int i = 0, p;
-    Arq = fopen("Arquivo.dat","wb");
+    char *temp = (char*) malloc(50*(sizeof(char)));
+
     t_cadastro *usuario;
     usuario = (t_cadastro*)malloc((i+1)*sizeof(t_cadastro));
 
@@ -193,14 +276,17 @@ int main(){
                i++;
                break;
             case 2:
-                p = verifica_cad(usuario, i);//funcao verifica se tem cadastro
+                p = verifica_cad(usuario, i, temp);//funcao verifica se tem cadastro
                 if (p==1){ //tem cadastro
                     //chama outra funcao que pede a senha
+                    confirma_senha;
 
-                }else{ //nao tem cadastro
+                }else if(p == 0){ //nao tem cadastro
                     cadastro(usuario,i);
                     salva_cadastro(usuario, i);
                     i++;
+                }else{
+
                 }
             case 3: //busca historico --
                 //Funcao: percorre_arq
