@@ -23,7 +23,7 @@ typedef struct{
 typedef struct{
     char nome[50];
     int num;
-    int qtd; // ver se precisa mesmo dessa variavel
+    int qtd;
     int dia_empr[LIM];
     int mes_empr[LIM];
     int ano_empr[LIM];
@@ -35,29 +35,27 @@ typedef struct{
 }t_emprestimo;
 
 int menu(){
-    char s_opcao[3];
+    char aux[3];
     int opcao;
     printf("\tBIBLIOTECA\n");
     printf("\t>>Menu<<\n");
     printf("1. Novo cadastro\n");
     printf("2. Empr stimo\n");
-    printf("3. Busca de hist rico\n"); //trocar nome -- busca de hist rico
-        //1. levar  s verifica  es -- devolucao, penalidade, cadastro da pessoa
+    printf("3. Busca de historico\n");
     printf("4. Sair\n");
     while(1){
-        printf("Digite sua op  o: ");
-        fgets(s_opcao, 3, stdin);
-        if((s_opcao[0]=='1')||(s_opcao[0] == '2')||(s_opcao[0] == '3')||(s_opcao[0] == '4')){
-            opcao = atoi(s_opcao);
+        printf("Digite sua opcao: ");
+        fgets(aux, 3, stdin);
+        if((aux[0]=='1')||(aux[0] == '2')||(aux[0] == '3')||(aux[0] == '4')){
+            opcao = atoi(aux);
             return opcao;
         }
     }
 }
 
 int verifica_cad(t_cadastro *usuario, int i){
-    int endereco;
+    int endereco, cont;
     Arq=fopen("Cadastro.bin", "rb");
-    int cont;
     char temp[50], aux[50];
 
     if(Arq == NULL){
@@ -70,12 +68,12 @@ int verifica_cad(t_cadastro *usuario, int i){
 
     for(cont=0; cont<i; cont++) {
         fread(aux, sizeof(temp), 1, Arq);
-        if(strcmp(aux, temp)== 0){ //quer dizer que achamos o nome de cadastro
-            endereco = ftell(Arq);
+        if(strcmp(aux, temp)== 0){ //nome de cadastro já existe
+            endereco = ftell(Arq); //indica onde está o nome no arquivo
             fclose(Arq);
             return endereco;
         }else{
-            fseek(Arq,TAM_CAD-50,SEEK_CUR);
+            fseek(Arq,TAM_CAD-50,SEEK_CUR); //procura o próximo nome
         }
     }
     fclose(Arq);
@@ -87,17 +85,15 @@ int cadastro(t_cadastro *usuario, int i){
     char temp[50];
     int senhatemp;
     int flag = verifica_cad(usuario, i);
-    // 1. se der 0 -- nao tem cadastro -- pode continuar a funcao de cadastro
-    // 2. se der -1 -- arquivo nao abriu -- sair de qualquer jeito
-    // 3. se der diferente dos dois -- tem cadastro -- mensagem -- sai
+
     if(flag != 0){
         if(flag == -1){
-            return -1;
+            return -1; //arquivo nao aberto
         }else{
-            printf("Ja existe um cadastro nesse nome\n");
+            printf("Ja existe um cadastro nesse nome\n"); //nao é necessario fazer cadastro
             return 1;
         }
-    }else{
+    }else{ //não existe cadastro
         printf("Nome: ");
         fgets(temp, 50, stdin);
         strcpy(usuario->nome,temp);
@@ -105,9 +101,9 @@ int cadastro(t_cadastro *usuario, int i){
         printf("Numero de cadastro: %d", i+1);
         usuario->num= i+100000;
 
-        //verifica  o da senha
+        //verifica senha
         while(1){
-            printf("Senha num rica: ");
+            printf("Senha numerica [pelo menos 4 algarismos]: ");
             fgets(temp, 10, stdin);
             senhatemp = atoi(temp);
             //converte string para inteiro
@@ -177,33 +173,51 @@ void salva_cadastro(t_cadastro *usuario){
         fwrite(usuario->bairro, sizeof(usuario->bairro), 1, Arq);
         fwrite(usuario->cidade, sizeof(usuario->cidade), 1, Arq);
         fwrite(usuario->estado, sizeof(usuario->estado), 1, Arq);
-
     }
     fclose(Arq);
 }
-void devolucao(int dia, int mes, int ano, int *dia_dev, int *mes_dev, int *ano_dev){
-    int dias;
-    dias = 31;
-    switch (mes){
-        case 2:
-            dias = dias - 3;
-            break;
-        case 4:
-        case 6:
-        case 9:
-        case 11:
-            dias--;
-            break;
 
+void devolucao(int dia, int mes, int ano, int *dia_dev, int *mes_dev, int *ano_dev){
+    //limite de devolução vale 14 dias
+    int dia_mes = 31;
+    switch (mes){
+        case 2: //fevereiro -- 28 dias
+            dia_mes = dia_mes - 3;
+            break;
+        case 4: //abril
+        case 6: //junho
+        case 9: //setembro
+        case 11: //novembro
+            dia_mes--; //30 dias
+            break;
+    }
+    se dia + 14 > dia_mes
+        se o mes for 12, ano++ e mes =1
+        se nao, mes++ e o ano continua
+    if(dia +14 > dia_mes){ //se há mudanca de mes
+        if(mes == 12){
+            *ano_dev = ano++;
+            *mes_dev = 1;
+            *dia_dev = dia + 14 - dia_mes;
+        }else{
+            *ano_dev = ano;
+            *mes_dev = mes++;
+            *dia_dev = dia + 14 - dia_mes;
+        }
+    }else{ //continua no mesmo mês
+        *ano_dev = ano;
+        *mes_dev = mes;
+        *dia_dev = dia + 14;
     }
 }
 
+//adiciona os livros novos e altera a quantidade
 void altera_emprestimo(t_emprestimo emprestimo, int i, int dia, int mes, int ano){
-    int qtd, cont=0, tam_total, tam_nome, dia_dev, mes_dev, ano_dev;
-    char livro[4][50],autor[4][50], nome[50];
+    int qtd, cont=0, dia_dev, mes_dev, ano_dev, flag;
+    char livro[LIM-1][50],autor[LIM-1][50], nome[50];
     Arq = fopen("Emprestimo.bin", "r+b");
 
-     if(Arq == NULL ){
+    if(Arq == NULL ){
         printf("Erro, nao foi possivel abrir o arquivo\n");
     }else{
         printf("Digite o nome: ");
@@ -212,29 +226,61 @@ void altera_emprestimo(t_emprestimo emprestimo, int i, int dia, int mes, int ano
         scanf("%d", &qtd);
         while(1){
             fread(emprestimo.nome, 50, 1, Arq);
-            if(strcmp(nome, emprestimo.nome)==0){ //adiciona os livros novos e altera a quantidade
+            if(strcmp(nome, emprestimo.nome)==0){ //verifica se encontrou o nome
                 fread(&emprestimo.num, sizeof(int), 1, Arq);
                 fread(&emprestimo.qtd, sizeof(int), 1, Arq);
+
+                //verfica multa
+                flag=0;
+                for (cont=0; cont<emprestimo.qtd; cont++){
+                    fseek(Arq, 3*sizeof(int), SEEK_CUR);
+                    fread(emprestimo.dia_dev[count], sizeof(int), 1, Arq);
+                    fread(emprestimo.mes_dev[count], sizeof(int), 1, Arq);
+                    fread(emprestimo.ano_dev[count], sizeof(int), 1, Arq);
+                    fread(emprestimo.nome_livro[count], sizeof(int), 1, Arq);
+                    if(emprestimo.ano_dev[cont] > ano){
+                        printf("%s esta atrasado", emprestimo.nome_livro[count]);
+                        flag++;
+                    }else{
+                        if(emprestimo.mes_dev[cout] > mes){
+                            printf("%s esta atrasado", emprestimo.nome_livro[count]);
+                            flag++;
+                        }else{
+                            if(emprestimo.dia_dev[cont] > dia){
+                                printf("%s esta atrasado", emprestimo.nome_livro[count]);
+                                flag++;
+                            }
+                        }
+                    }
+                    if((cont == emprestimo.qtd -1) &&  (flag != 0))
+                        break;
+                    fseek(Arq, 50, SEEK_CUR);
+                }
+
                 while(qtd + emprestimo.qtd > LIM){
                     printf("Erro: quantidade acima da permitida\n");
-                    printf("Digite a quantidade de livros:(até %d):",(LIM-emprestimo.qtd));
+                    printf("Digite a quantidade de livros (até %d): ",(LIM-emprestimo.qtd));
                     scanf("%d", &qtd);
                 }
-                for(cont=0;cont<qtd;cont++){
+                for(cont=0;cont<qtd;cont++){ //nomes dos novos livros a serem adicionados
                     printf("Digite o nome do livro %d: ",cont);
                     fgets(nome[cont],50,stdin);
                     printf("Digite o nome do autor do livro %d: ",cont);
                     fgets(autor[cont],50,stdin);
                 }
-                devolucao(dia,mes,ano,dia_dev,mes_dev,ano_dev);//saber os dias finais dos livros novos
-                for(cont=emprestimo.qtd;cont < LIM; cont++){
+
+                devolucao(dia, mes, ano, &dia_dev, &mes_dev, &ano_dev);//saber os dias finais dos livros novos
+                for(cont=emprestimo.qtd; cont < LIM; cont++){
                     emprestimo.dia_dev[cont]=dia_dev;
                     emprestimo.mes_dev[cont]=mes_dev;
                     emprestimo.ano_dev[cont]=ano_dev;
                 }
+
+
+
                 //deslocar até os slots de livros não preenchidos
-                fseek(Arq,emprestimo.qtd*(6*sizeof(int)+sizeof(emprestimo.nome_livro)+sizeof(emprestimo.nome_autor)),SEEK_CUR);
-                for(cont=0; cont < qtd; cont++){
+                fseek(Arq, emprestimo.qtd*(6*sizeof(int)+sizeof(emprestimo.nome_livro)+sizeof(emprestimo.nome_autor)), SEEK_CUR);
+                for(cont=; cont < qtd; cont++){
                     fwrite(&dia, sizeof(int), 1, Arq);
                     fwrite(&mes, sizeof(int), 1, Arq);
                     fwrite(&ano, sizeof(int), 1, Arq);
@@ -244,6 +290,18 @@ void altera_emprestimo(t_emprestimo emprestimo, int i, int dia, int mes, int ano
                     fwrite(nome[cont], 50*sizeof(char), 1, Arq);
                     fwrite(autor[cont], 50*sizeof(char), 1, Arq);
                 }
+                //mudança na quantidade de livros
+                emprestimo.qtd += qtd;
+                fseek(Arq, -1*emprestimo.qtd*(6*sizeof(int)+sizeof(emprestimo.nome_livro)+sizeof(emprestimo.nome_autor)), SEEK_CUR);
+                fseek(Arq, -1*sizeof(int), SEEK_CUR);
+                fwrite(&emprestimo.qtd, sizeof(int), 1, Arq);
+
+            }else{ //nao achou o nome
+                fseek(Arq, TAM_CAD - 50, SEEK_CUR); //le ate o proximo emprestimo
+                if(fread(flag, 1, 1, Arq) == 0) //ver se o arquivo ja chegou ao fim
+                    break;
+                else
+                    fseek(Arq, -1, SEEK_CUR);
             }
         }
     fclose(Arq);
@@ -268,7 +326,7 @@ int confirma_senha(int endereco){
             if(senha1 == senha2){
                 fclose(Arq);
                 return 1;
-            }else if (senha2 == 0){
+            }else if (senha2 == 0){ //sair da funcao
                 fclose(Arq);
                 return 0;
             }else{
@@ -281,20 +339,51 @@ int confirma_senha(int endereco){
 
 }
 
-
-void novo_emprestimo(t_cadastro usuario, int endereco, int dia, int mes, int ano){
-    t_emprestimo emprestimo;
-    int tam_emprestimo, tam_livro[LIM], cont, dia_dev,mes_dev,ano_dev;
+int verifica_emprestimo(int endereco){
     Arq = fopen("Cadastro.bin", "rb");
 
     if(Arq == NULL){
         printf("Erro ao abrir o arquivo\n");
     }else{
-        fseek(Arq, endereco - 50, SEEK_SET);
+        fseek(Arq, endereco - 50, SEEK_SET); //vai até o fim do nome da pessoa e volta novamente para lê-lo
+        fread(emprestimo.nome, 50, 1, Arq);
+    }
+    fclose(Arq);
+
+    Arq = fopen("Emprestimo.bin", "rb");
+
+    if(Arq == NULL){
+        printf("Erro ao abrir o arquivo\n");
+    }else{
+        while(1){
+            fread(emprestimo.nome, 50, 1, Arq);
+            if(strcmp(nome, emprestimo.nome)==0){
+                return 1; //ja tem emprestimo, chama o altera emprestimo
+            }else{ //nao achou o nome
+                fseek(Arq, TAM_CAD - 50, SEEK_CUR); //le ate o proximo emprestimo
+                if(fread(flag, 1, 1, Arq) == 0) //ver se o arquivo ja chegou ao fim
+                    return 0; //nao tem emprestimo
+                else
+                    fseek(Arq, -1, SEEK_CUR);
+            }
+        }
+    }
+}
+
+void novo_emprestimo(t_cadastro usuario, int endereco, int dia, int mes, int ano){
+    t_emprestimo emprestimo;
+    int cont, dia_dev, mes_dev, ano_dev;
+    Arq = fopen("Cadastro.bin", "rb");
+
+    if(Arq == NULL){
+        printf("Erro ao abrir o arquivo\n");
+    }else{
+        fseek(Arq, endereco - 50, SEEK_SET); //vai até o fim do nome da pessoa e volta novamente para lê-lo
         fread(emprestimo.nome, 50, 1, Arq);
         fread(emprestimo.num, sizeof(int), 1, Arq);
     }
     fclose(Arq);
+
 
     Arq = fopen("Emprestimo.bin", "ab");
     if(Arq == NULL){
@@ -313,20 +402,25 @@ void novo_emprestimo(t_cadastro usuario, int endereco, int dia, int mes, int ano
             printf("Digite o nome do autor: ");
             fgets(emprestimo.nome_autor[cont], 50, stdin);
         }
-        //salvar no arquivo tamanhos e a propria struct
+        //salvar no arquivo nome, num de id e quantidade de livros
         fwrite(&emprestimo.nome, sizeof(emprestimo.nome), 1, Arq);
         fwrite(&emprestimo.num, sizeof(int), 1, Arq);
         fwrite(&emprestimo.qtd, sizeof(int), 1,Arq);
 
         //saber o dia da devolucao
         devolucao(dia, mes, ano, &dia_dev, &mes_dev, &ano_dev);
+        1. se dia hoje > dia_dev == multa
+
+        nome, num, qtd >0
+
         for(cont = 0; cont < emprestimo.qtd; cont++){
             emprestimo.dia_dev[cont]=dia_dev;
             emprestimo.mes_dev[cont]=mes_dev;
             emprestimo.ano_dev[cont]=ano_dev;
         }
+
         //reservar o espaço no binario de uma vez para LIM*livros
-        for(cont=0;cont<LIM;cont++){
+        for(cont=0; cont<LIM; cont++){
             fwrite(dia, sizeof(int), 1, Arq);
             fwrite(mes, sizeof(int), 1, Arq);
             fwrite(ano, sizeof(int), 1, Arq);
@@ -340,7 +434,7 @@ void novo_emprestimo(t_cadastro usuario, int endereco, int dia, int mes, int ano
     fclose(Arq);
 }
 
-void ler_cadastro(){
+void imprimir_cadastro(){
     t_cadastro usuario;
     char nome[50], flag;
 
@@ -350,8 +444,8 @@ void ler_cadastro(){
     }else{
         printf("Digite o nome a ser procurado: ");
         fgets(nome, 50, stdin);
-        while(1){
 
+        while(1){
             fread(usuario.nome, 50, 1, Arq);
             if(strcmp(nome, usuario.nome)==0){ //ou seja, sao iguais
                     //le a struct
@@ -375,24 +469,25 @@ void ler_cadastro(){
                 printf("Cidade: %s\n", usuario.cidade);
                 printf("Estado: %s\n", usuario.estado);
                 fclose(Arq);
-                ler_emprestimo(nome);
+                imprimir_emprestimo(nome);
                 break;
             }else{
-                fseek(Arq, TAM_CAD-50, SEEK_CUR);
-                if(fread(flag, 1, 1, Arq) == 0) //ver se o arquivo j  chegou ao fim
+                fseek(Arq, TAM_CAD-50, SEEK_CUR); //pula para o proximo cadastro -- ja estava no nome da pessoa de antes
+                if(fread(flag, 1, 1, Arq) == 0) //ver se o arquivo ja chegou ao fim
                     break;
                 else
-                    fseek(Arq, -1, SEEK_CUR);
+                    fseek(Arq, -1, SEEK_CUR); //volta 1 byte
             }
         }
     }
 }
 
-void ler_emprestimo(char nome){
+void imprimir_emprestimo(char nome){
     t_emprestimo emprestimo;
     char flag;
     int cont;
     Arq = fopen("Emprestimo.bin", "rb");
+
     if(Arq == NULL){
         printf("Erro ao abrir o arquivo\n");
     }else{
@@ -400,8 +495,9 @@ void ler_emprestimo(char nome){
             fread(emprestimo.nome, 50, 1, Arq);
             if(strcmp(nome, emprestimo.nome)==0){ //iguais
                 //ler arquivo
+                fread(emprestimo.num, sizeof(int), 1, Arq);
                 fread(emprestimo.qtd, sizeof(int), 1, Arq);
-                for(cont=0; cont < emprestimo.qtd; cont++){
+                for(cont=0; cont < emprestimo.qtd; cont++){ //nao le o lixo (se tiver)
                     fread(emprestimo.dia_empr[cont], sizeof(int), 1, Arq);
                     fread(emprestimo.mes_empr[cont], sizeof(int), 1, Arq);
                     fread(emprestimo.ano_empr[cont], sizeof(int), 1, Arq);
@@ -420,9 +516,9 @@ void ler_emprestimo(char nome){
                     printf("Livro %d: %s, %s\n", cont+1, emprestimo.nome_livro[cont], emprestimo.nome_autor[cont]);
                 }
                 break;
-            }else{
-                fseek(Arq, TAM_CAD - 50, SEEK_CUR);
-                if(fread(flag, 1, 1, Arq) == 0) //ver se o arquivo j  chegou ao fim
+            }else{ //nao achou o nome
+                fseek(Arq, TAM_CAD - 50, SEEK_CUR); //le ate o proximo emprestimo
+                if(fread(flag, 1, 1, Arq) == 0) //ver se o arquivo ja chegou ao fim
                     break;
                 else
                     fseek(Arq, -1, SEEK_CUR);
@@ -438,9 +534,9 @@ int main(){
     int dia, mes, ano;
 
     t_cadastro usuario;
+    t_emprestimo emprestimo;
 
     //Data do dia
-
     printf("Data de hoje\n");
     printf("Dia: ");
     scanf("%d", &dia);
@@ -466,9 +562,15 @@ int main(){
                 if(endereco !=0 && endereco !=(-1)){ //tem cadastro
                     //chama outra funcao que pede a senha
                     if(confirma_senha(endereco)){ //tem cadastro e confirmou a senha -- pode fazer o emprestimo
-                        novo_emprestimo(usuario, endereco, dia, mes, ano);
-                        break;
-                    }else{
+                    //verificar se ja tem nome no arquivo de emprestimo
+                        if(verifica_emprestimo(endereco)==0){//nao tem emprestimo
+                            novo_emprestimo(usuario, endereco, dia, mes, ano);
+                            break;
+                        }else{          //se nome existir, chama o altera_emprestimo
+                            altera_emprestimo(emprestimo, i, dia, mes, ano);
+                            break;
+                        }
+                    }else{ //saiu sem preencher a senha
                         break;
                     }
                 }else if(endereco == 0){ //nao tem cadastro
@@ -477,7 +579,8 @@ int main(){
                 }
 
             case 3: //busca historico --
-                ler_cadastro();
+                imprimir_cadastro();
+                break;
             case 4:
                 return 0;
         }
