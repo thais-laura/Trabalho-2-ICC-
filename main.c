@@ -57,24 +57,21 @@ int verifica_cad(t_cadastro *usuario, int i, char temp[50], char *url_cad){
    	FILE *Arq = fopen(url_cad, "r+b");
 
     if (Arq == NULL) {
-       // Arq = fopen(url_cad, "w+b");
-        //if (Arq == NULL) {
-            printf("Erro, nao foi possivel abrir o arquivo\n");
-            return -1;
-       // }
+        printf("Erro, nao foi possivel abrir o arquivo\n");
+        return -1;
     }
     while(1){
         fread(usuario->nome, 50, 1, Arq);
-        if(strcmp(temp, usuario->nome)==0){ //ou seja, sao iguais
+        if(strcmp(temp, usuario->nome)==0){ //iguais
             endereco = ftell(Arq); //indica onde está o nome no arquivo
             fclose(Arq);
             return endereco;
         }else{
-            fseek(Arq, TAM_CAD-50, SEEK_CUR); //pula para o proximo cadastro -- ja estava no nome da pessoa de antes
-            if(fread(&flag, 1, 1, Arq) == 0) //ver se o arquivo ja chegou ao fim
+            fseek(Arq, TAM_CAD-50, SEEK_CUR); //pula para o proximo cadastro
+            if(fread(&flag, 1, 1, Arq) == 0) //verifica se alcançou o fim do arquivo
                 break;
             else
-                fseek(Arq, -1, SEEK_CUR); //volta 1 bytE
+                fseek(Arq, -1, SEEK_CUR);
         }
     }
     fclose(Arq);
@@ -107,7 +104,6 @@ int cadastro(t_cadastro *usuario, int i, char *url_cad){
             printf("Senha numerica [pelo menos 4 algarismos]: ");
             fgets(temp, 10, stdin);
             senhatemp = atoi(temp);
-            //converte string para inteiro
             while(senhatemp < 1000){
                 printf("Digite uma senha de pelo menos 4 algarismos\n");
                 printf("Senha numerica: ");
@@ -163,17 +159,12 @@ int cadastro(t_cadastro *usuario, int i, char *url_cad){
 
 void salva_cadastro(t_cadastro *usuario, char *url_cad){
     FILE *Arq=fopen(url_cad, "ab");
-    int a;
 
     if(Arq == NULL){
         printf("Erro, nao foi possivel abrir o arquivo\n");
     }else{
-        printf("nome: %s\nnumero: %d\nsenha: %d\n", usuario->nome, usuario->num, usuario->senha);
-
-        a = fwrite(&usuario->nome, sizeof(char), 50, Arq);
-        printf("devia sair 50 mas sai: %d\n", a);
-        a = fwrite(&usuario->num, sizeof(int), 1, Arq);
-        printf("devia sair 1 mas sai: %d\n", a);
+        fwrite(&usuario->nome, sizeof(char), 50, Arq);
+        fwrite(&usuario->num, sizeof(int), 1, Arq);
         fwrite(&usuario->senha, sizeof(int), 1, Arq);
         fwrite(&usuario->data_nasc[0], sizeof(int), 1, Arq);
         fwrite(&usuario->data_nasc[1], sizeof(int), 1, Arq);
@@ -538,8 +529,7 @@ int main(){
 	char *url_cad = "Cadastro.bin";
 	char *url_empr = "Emprestimo.bin";
 	char nome[50];
-    int i = 0, endereco, flag; //se fechar o programa e rodar de novo, i volta a ser zero e atrapalha o for de verifica cadastro --
-    //pensar em outra solucao para isso
+    int i = 0, endereco, flag;
     int dia, mes, ano;
 
     t_cadastro usuario;
@@ -584,31 +574,25 @@ int main(){
                 fflush(stdin);
                 printf("Nome: ");
                 fgets(nome, 50, stdin);
-                endereco = verifica_cad(&usuario, i, nome, url_cad);//funcao verifica se tem cadastro
+                endereco = verifica_cad(&usuario, i, nome, url_cad);
                 if(endereco !=0 && endereco !=(-1)){ //tem cadastro
-                    //chama outra funcao que pede a senha
-                    printf("a pessoa tem cadastro!!\n");
-                    if(confirma_senha(endereco, url_cad)){ //tem cadastro e confirmou a senha -- pode fazer o emprestimo
-                    //verificar se ja tem nome no arquivo de emprestimo
-                        printf("Confirmou senha!!!\n");
-                        if(verifica_emprestimo(nome, url_empr)==0){//nao tem emprestimo
-                            printf("ainda n tem emprestimo...\n");
+                    if(confirma_senha(endereco, url_cad)){
+                        if(verifica_emprestimo(nome, url_empr)==0){ //nao realizou ainda algum emprestimo
                             novo_emprestimo(usuario, endereco, dia, mes, ano, url_cad, url_empr);
                             break;
-                        }else if(verifica_emprestimo(nome, url_empr)==1){ //se nome existir, chama o altera_emprestimo
-                            printf("tem emprestimo!\n");
+                        }else if(verifica_emprestimo(nome, url_empr)==1){ //ja possui algum emprestimo
                             altera_emprestimo(dia, mes, ano, url_empr);
                             break;
                         }
                         break;
-                    }else//saiu sem preencher a senha
+                    }else//nao houve preenchimento da senha
                         break;
                 }else if(endereco == 0){ //nao tem cadastro
                     printf("Nao existe cadastro\n");
                     break;
                 }
 
-            case 3: //busca historico --
+            case 3:
                 imprimir_cadastro(url_cad, url_empr);
                 break;
             case 4:
