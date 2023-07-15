@@ -3,9 +3,7 @@
 #include <strings.h>
 #define LIM 5
 #define TAM_CAD 224
-#define TAM_EMP 670
-
-FILE *Arq;
+#define TAM_EMPR 670
 
 typedef struct{
     char nome[50];
@@ -56,7 +54,7 @@ int menu(){
 
 int verifica_cad(t_cadastro *usuario, int i, char temp[50], char *url_cad){
     int endereco, flag;
-   	Arq = fopen(url_cad, "r+b");
+   	FILE *Arq = fopen(url_cad, "r+b");
 
     if (Arq == NULL) {
        // Arq = fopen(url_cad, "w+b");
@@ -164,7 +162,7 @@ int cadastro(t_cadastro *usuario, int i, char *url_cad){
 }
 
 void salva_cadastro(t_cadastro *usuario, char *url_cad){
-    Arq=fopen(url_cad, "ab");
+    FILE *Arq=fopen(url_cad, "ab");
     int a;
 
     if(Arq == NULL){
@@ -194,7 +192,7 @@ void salva_cadastro(t_cadastro *usuario, char *url_cad){
 int confirma_senha(int endereco, char *url_cad){
     char aux[10];
     int senha1, senha2;
-    Arq = fopen(url_cad, "rb");
+    FILE *Arq = fopen(url_cad, "rb");
 
     if(Arq == NULL){
         printf("Erro, nao foi possivel abrir o arquivo\n");
@@ -253,45 +251,38 @@ void devolucao(int dia, int mes, int ano, int *dia_dev, int *mes_dev, int *ano_d
 }
 
 
-int verifica_emprestimo(int endereco, char *url_cad, char *url_empr){
+int verifica_emprestimo(char nome[50], char *url_empr){
     t_emprestimo emprestimo;
-    char nome[50];
     int flag;
-    Arq = fopen(url_cad, "r+b");
 
-    if(Arq == NULL){
-        printf("Erro ao abrir o arquivo\n");
-    }else{
-        fseek(Arq, endereco - 50, SEEK_SET); //vai até o fim do nome da pessoa e volta novamente para lê-lo
-        fread(&emprestimo.nome, 50, 1, Arq);
-    }
-    fclose(Arq);
+    FILE *Arq = fopen(url_empr, "rb");
 
-    Arq = fopen(url_empr, "rb");
-
-    if(Arq == NULL){
-        printf("Erro ao abrir o arquivo\n");
+    if (Arq == NULL){
+        printf("Erro ao abrir o arquivo de emprestimo\n");
         return -1;
     }else{
-        while(1){
-            fread(&emprestimo.nome, 50, 1, Arq);
-            if(strcmp(nome, emprestimo.nome)==0){
+        while (1){
+            fread(&emprestimo.nome, sizeof(char), 50, Arq);
+            if (strcmp(nome, emprestimo.nome) == 0){
+                fclose(Arq);
                 return 1; //ja tem emprestimo, chama o altera emprestimo
-            }else{ //nao achou o nome
-                fseek(Arq, TAM_CAD - 50, SEEK_CUR); //le ate o proximo emprestimo
-                if(fread(&flag, 1, 1, Arq) == 0) //ver se o arquivo ja chegou ao fim
+            }else{
+                fseek(Arq, TAM_EMPR - 50, SEEK_CUR); //le ate o proximo emprestimo
+                if(fread(&flag, sizeof(char), 1, Arq) == 0) //ver se o arquivo ja chegou ao fim
                     return 0; //nao tem emprestimo
                 else
                     fseek(Arq, -1, SEEK_CUR);
             }
         }
     }
-}
 
+    fclose(Arq);
+    return 0;
+}
 void novo_emprestimo(t_cadastro usuario, int endereco, int dia, int mes, int ano, char *url_cad, char *url_empr){
     t_emprestimo emprestimo;
     int cont, dia_dev, mes_dev, ano_dev;
-    Arq = fopen(url_cad, "rb");
+    FILE *Arq = fopen(url_cad, "rb");
 
     if(Arq == NULL){
         printf("Erro ao abrir o arquivo de cad\n");
@@ -315,6 +306,7 @@ void novo_emprestimo(t_cadastro usuario, int endereco, int dia, int mes, int ano
             scanf("%d", &emprestimo.qtd);
         }
         for(cont = 0; cont < emprestimo.qtd; cont++){
+            fflush(stdin);
             printf("Digite o nome do livro %d: ", cont+1);
             fgets(emprestimo.nome_livro[cont], 50, stdin);
             printf("Digite o nome do autor: ");
@@ -349,10 +341,11 @@ void novo_emprestimo(t_cadastro usuario, int endereco, int dia, int mes, int ano
 }
 
 //adiciona os livros novos e altera a quantidade
-void altera_emprestimo(t_emprestimo emprestimo, int i, int dia, int mes, int ano, char *url_empr){
-    int qtd, cont=0, dia_dev, mes_dev, ano_dev, flag;
+void altera_emprestimo(int dia, int mes, int ano, char *url_empr){
+    t_emprestimo emprestimo;
+    int qtd, cont, dia_dev, mes_dev, ano_dev, flag;
     char livro[LIM-1][50],autor[LIM-1][50], nome[50];
-    Arq = fopen(url_empr, "r+b");
+    FILE *Arq = fopen(url_empr, "r+b");
 
     if(Arq == NULL ){
         printf("Erro, nao foi possivel abrir o arquivo\n");
@@ -369,29 +362,31 @@ void altera_emprestimo(t_emprestimo emprestimo, int i, int dia, int mes, int ano
 
                 //verfica multa
                 flag=0;
-                for (cont=0; cont<emprestimo.qtd; cont++){
+                for (cont=0; cont < emprestimo.qtd; cont++){
                     fseek(Arq, 3*sizeof(int), SEEK_CUR);
                     fread(&emprestimo.dia_dev[cont], sizeof(int), 1, Arq);
                     fread(&emprestimo.mes_dev[cont], sizeof(int), 1, Arq);
                     fread(&emprestimo.ano_dev[cont], sizeof(int), 1, Arq);
-                    fread(&emprestimo.nome_livro[cont], sizeof(int), 1, Arq);
-                    if(emprestimo.ano_dev[cont] > ano){
-                        printf("%s esta atrasado", emprestimo.nome_livro[cont]);
+                    fread(&emprestimo.nome_livro[cont], sizeof(char), 50, Arq);
+                    if(emprestimo.ano_dev[cont] < ano){
+                        printf("%s esta atrasado\n", emprestimo.nome_livro[cont]);
                         flag++;
                     }else{
-                        if(emprestimo.mes_dev[cont] > mes){
-                            printf("%s esta atrasado", emprestimo.nome_livro[cont]);
+                        if(emprestimo.mes_dev[cont] < mes){
+                            printf("%s esta atrasado\n ", emprestimo.nome_livro[cont]);
                             flag++;
                         }else{
-                            if(emprestimo.dia_dev[cont] > dia){
-                                printf("%s esta atrasado", emprestimo.nome_livro[cont]);
+                            if(emprestimo.dia_dev[cont] < dia){
+                                printf("%s esta atrasado\n", emprestimo.nome_livro[cont]);
                                 flag++;
                             }
                         }
                     }
-                    if((cont == emprestimo.qtd -1) &&  (flag != 0))
-                        break;
-                    fseek(Arq, 50, SEEK_CUR);
+                    fseek(Arq, 50*sizeof(char), SEEK_CUR);
+                }
+                if(flag != 0){
+                    printf("Nao pode realizar emprestimos devido aos atrasos\n");
+                    break;
                 }
 
                 while(qtd + emprestimo.qtd > LIM){
@@ -400,9 +395,10 @@ void altera_emprestimo(t_emprestimo emprestimo, int i, int dia, int mes, int ano
                     scanf("%d", &qtd);
                 }
                 for(cont=0;cont<qtd;cont++){ //nomes dos novos livros a serem adicionados
-                    printf("Digite o nome do livro %d: ",cont);
+                    fflush(stdin);
+                    printf("Digite o nome do livro %d: ",cont+1);
                     fgets(livro[cont],50,stdin);
-                    printf("Digite o nome do autor do livro %d: ",cont);
+                    printf("Digite o nome do autor do livro %d: ",cont+1);
                     fgets(autor[cont],50,stdin);
                 }
 
@@ -413,10 +409,6 @@ void altera_emprestimo(t_emprestimo emprestimo, int i, int dia, int mes, int ano
                     emprestimo.ano_dev[cont]=ano_dev;
                 }
 
-
-
-                //deslocar até os slots de livros não preenchidos
-                fseek(Arq, emprestimo.qtd*(6*sizeof(int)+sizeof(emprestimo.nome_livro)+sizeof(emprestimo.nome_autor)), SEEK_CUR);
                 for(cont=0; cont < qtd; cont++){
                     fwrite(&dia, sizeof(int), 1, Arq);
                     fwrite(&mes, sizeof(int), 1, Arq);
@@ -449,7 +441,7 @@ void imprimir_emprestimo(char nome[50], char *url_empr){
     t_emprestimo emprestimo;
     char flag;
     int cont;
-    Arq = fopen(url_empr, "r+b");
+    FILE *Arq = fopen(url_empr, "r+b");
 
     if(Arq == NULL){
         printf("Erro ao abrir o arquivo\n");
@@ -495,7 +487,7 @@ void imprimir_cadastro(char *url_cad, char *url_empr){
     t_cadastro usuario;
     char nome[50], flag;
 
-    Arq = fopen(url_cad, "rb");
+    FILE *Arq = fopen(url_cad, "rb");
     if(Arq == NULL){
         printf("Erro ao abrir o arquivo\n");
     }else{
@@ -521,18 +513,12 @@ void imprimir_cadastro(char *url_cad, char *url_empr){
                 printf("Nome: %s\n", usuario.nome);
                 printf("Numero de cadastro: %d\n", usuario.num);
                 printf("Data de nascimento: %d/%d/%d\n", usuario.data_nasc[0], usuario.data_nasc[1], usuario.data_nasc[2]);
-                printf("Rua %s,%d, %s", usuario.rua, usuario.num_casa, usuario.complemento);
+                printf("Rua %s numero %d, %s", usuario.rua, usuario.num_casa, usuario.complemento);
                 printf("Bairro: %s\n", usuario.bairro);
                 printf("Cidade: %s\n", usuario.cidade);
                 printf("Estado: %s\n", usuario.estado);
                 fclose(Arq);
-  /*ESTÁ DANDO ERRO
-  NA ABERTURA DO ARQ*/
-                Arq = fopen(url_empr, "rb");
 
-                if(Arq == NULL)
-                printf("Erro ao abrir o arquivo emprestimo pela primeira vez\n");
-                fclose(Arq);
                 imprimir_emprestimo(usuario.nome, url_empr);
                 break;
             }else{
@@ -549,15 +535,14 @@ void imprimir_cadastro(char *url_cad, char *url_empr){
 
 
 int main(){
-	char *url_cad="Cadastro.bin";
-	char *url_empr="Emprestimo.bin";
+	char *url_cad = "Cadastro.bin";
+	char *url_empr = "Emprestimo.bin";
 	char nome[50];
     int i = 0, endereco, flag; //se fechar o programa e rodar de novo, i volta a ser zero e atrapalha o for de verifica cadastro --
     //pensar em outra solucao para isso
     int dia, mes, ano;
 
     t_cadastro usuario;
-    t_emprestimo emprestimo;
 
     //Data do dia
     printf("Data de hoje\n");
@@ -568,6 +553,21 @@ int main(){
     printf("Ano: ");
     scanf("%d", &ano);
     int opcao;
+
+    FILE *Arq = fopen(url_cad, "rb");
+    if (Arq == NULL) {
+        printf("Erro, nao foi possivel abrir o arquivo de cadastro\n");
+        return -1;
+    }
+    fclose(Arq);
+
+    Arq = fopen(url_empr, "rb");
+    if (Arq == NULL) {
+        printf("Erro, nao foi possivel abrir o arquivo de emprestimo\n");
+        return -1;
+    }
+    fclose(Arq);
+
 
     while(1){
         opcao = menu();
@@ -591,15 +591,16 @@ int main(){
                     if(confirma_senha(endereco, url_cad)){ //tem cadastro e confirmou a senha -- pode fazer o emprestimo
                     //verificar se ja tem nome no arquivo de emprestimo
                         printf("Confirmou senha!!!\n");
-                        if(verifica_emprestimo(endereco, url_cad, url_empr)==0){//nao tem emprestimo
+                        if(verifica_emprestimo(nome, url_empr)==0){//nao tem emprestimo
                             printf("ainda n tem emprestimo...\n");
                             novo_emprestimo(usuario, endereco, dia, mes, ano, url_cad, url_empr);
                             break;
-                        }else if(verifica_emprestimo(endereco, url_cad, url_empr)==1){ //se nome existir, chama o altera_emprestimo
+                        }else if(verifica_emprestimo(nome, url_empr)==1){ //se nome existir, chama o altera_emprestimo
                             printf("tem emprestimo!\n");
-                            altera_emprestimo(emprestimo, i, dia, mes, ano, url_empr);
+                            altera_emprestimo(dia, mes, ano, url_empr);
                             break;
                         }
+                        break;
                     }else//saiu sem preencher a senha
                         break;
                 }else if(endereco == 0){ //nao tem cadastro
